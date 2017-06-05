@@ -1,7 +1,7 @@
 # Divide and Conquer Networks (DCN)
 
 ![figgeneral](imgs/figgeneral.png)
-
+Code accompanying [Divide and Conquer Networks](https://arxiv.org/pdf/1611.02401.pdf)
 # DCN Summary
 ## Model
 
