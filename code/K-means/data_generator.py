@@ -76,7 +76,7 @@ class Generator(object):
         Pts = []
         cov = 0.001 * np.eye(2, 2)
         target = np.zeros([length])
-        for c in xrange(clusters):
+        for c in range(clusters):
             points = np.random.multivariate_normal(centers[c], cov, per_cl)
             target[c * per_cl: (c + 1) * per_cl] = c
             Pts.append(points)
@@ -90,7 +90,7 @@ class Generator(object):
         plt.figure(0)
         plt.clf()
         colors = cm.rainbow(np.linspace(0, 1, clusters))
-        for c in xrange(clusters):
+        for c in range(clusters):
             ind = np.where(y == c)[0]
             plt.scatter(x[ind, 0], x[ind, 1], c=colors[c])
         path = '/home/anowak/DynamicProgramming/DP/plots/example.png'
@@ -104,7 +104,7 @@ class Generator(object):
         _, max_length = self.compute_length(clusters)
         x = -1 * np.ones([num_examples, max_length, self.input_size])
         y = 1e6 * np.ones([num_examples, max_length])
-        for ex in xrange(num_examples):
+        for ex in range(num_examples):
             length, max_length = self.compute_length(clusters)
             if self.task == "kmeans":
                 # x_ex, y_ex = self.kmeans_example(length, clusters)

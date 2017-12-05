@@ -22,7 +22,7 @@ n = [40, 80, 160]
 ks = [4, 8, 16]
 
 names = ['baseline', 'DCN']
-for k in xrange(3):
+for k in range(3):
     plt.figure(k)
     plt.clf()
     npzfile = np.load(path + baselines[k] + '/results.npz')

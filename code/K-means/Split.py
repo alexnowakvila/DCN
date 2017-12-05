@@ -13,6 +13,7 @@ import unicodedata
 import string
 import re
 import random
+import pdb
 
 import torch
 import torch.nn as nn
@@ -67,7 +68,7 @@ class Split(nn.Module):
         self.input_size = input_size
         self.n = 32
         layers = [SplitLayer(input_size, hidden_size, batch_size)
-                  for i in xrange(n_layers)]
+                  for i in range(n_layers)]
         self.layers = nn.ModuleList(layers)
         self.linear_b = nn.Linear(hidden_size, 1, bias=True).type(dtype)
 
@@ -115,11 +116,11 @@ class Split(nn.Module):
         inp_masked = mask * input.unsqueeze(1).expand_as(mask)
         N = mask.sum(2)
         N += (N == 0).type(dtype)
-        means = inp_masked.sum(2) / N
+        means = inp_masked.sum(2).unsqueeze(2) / N
         dif = inp_masked - mask * means.expand_as(inp_masked)
         var = (dif * dif).sum(2).squeeze() / N
         var += (var == 0).type(dtype)
         # use isotropic variance
-        var = var.sum(2).expand_as(input)
+        var = var.sum(2).unsqueeze(2).expand_as(input)
         inp_norm = (input - means.squeeze(2)) / (3 * var.sqrt()) + 0.5
         return inp_norm

@@ -7,6 +7,7 @@ import os
 from data_generator import Generator
 from Logger import Logger
 from DCN import DivideAndConquerNetwork
+import utils
 import time
 import matplotlib
 matplotlib.use('Agg')
@@ -18,6 +19,7 @@ import string
 import re
 import random
 import argparse
+import pdb
 
 import torch
 import torch.nn as nn
@@ -26,7 +28,11 @@ from torch.autograd import Variable
 from torch import optim
 import torch.nn.functional as F
 
-
+path = '/home/anowak/tmp/kmeans/exp4/'
+path_dataset = '/data/anowak/kmeans/'
+path_model = '/data/anowak/kmeans/models/exp4/'
+# path_load_model = '/data/anowak/kmeans/models/exp2/'
+path_load_model = None
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--dynamic', action='store_true',
@@ -39,15 +45,19 @@ parser.add_argument('--num_examples_test', nargs='?', const=1, type=int,
 parser.add_argument('--num_epochs', nargs='?', const=1, type=int, default=35)
 parser.add_argument('--batch_size', nargs='?', const=1, type=int, default=256)
 parser.add_argument('--mode', nargs='?', const=1, type=str, default='train')
-parser.add_argument('--path_dataset', nargs='?', const=1, type=str, default='')
-parser.add_argument('--path', nargs='?', const=1, type=str, default='')
+parser.add_argument('--path_dataset', nargs='?', const=1,
+                    type=str, default=path_dataset)
+parser.add_argument('--path', nargs='?', const=1, type=str, default=path)
 
 
 ###############################################################################
 #                              split arguments                                #
 ###############################################################################
 
-parser.add_argument('--load_split', nargs='?', const=1, type=str)
+parser.add_argument('--path_model', nargs='?', const=1, type=str,
+                    default=path_model)
+parser.add_argument('--path_load_model', nargs='?', const=1, type=str,
+                    default=path_load_model)
 parser.add_argument('--split_layers', nargs='?', const=1, type=int, default=5)
 parser.add_argument('--num_units_split', nargs='?', const=1, type=int,
                     default=15)
@@ -79,8 +89,8 @@ def train(DCN, logger, gen):
     Accuracies_tr = [[] for ii in gen.clusters['train']]
     Accuracies_te = [[] for ii in gen.clusters['test']]
     iterations_tr = int(gen.num_examples_train / batch_size)
-    for epoch in xrange(num_epochs):
-        for it in xrange(iterations_tr):
+    for epoch in range(num_epochs):
+        for it in range(iterations_tr):
             losses = 0.0
             variances = 0.0
             start = time.time()
@@ -99,9 +109,10 @@ def train(DCN, logger, gen):
                 losses += loss
                 variances += var
                 Accuracies_tr[i].append(loss.data.cpu().numpy())
+                # ll = utils.Lloyds(input, n_clusters=cl)
+                # pdb.set_trace()
             losses /= len(gen.clusters['train'])
             variances /= len(gen.clusters['train'])
-            # optimizer.step()
             Loss.append(losses.data.cpu().numpy())
             Loss_reg.append(variances.data.cpu().numpy())
             elapsed = time.time() - start
@@ -114,9 +125,9 @@ def train(DCN, logger, gen):
                 logger.plot_Phis_sparsity(Phis, fig=0)
                 logger.plot_losses(Loss, Loss_reg, fig=2)
                 logger.plot_classes(input, cl, e, fig=cl)
-            if it % 2000 == 2000 - 1:
-                print('Saving model parameters')
-                DCN.save_split(args.path_parameters)
+        if epoch % 5 == 4:
+            print('Saving model parameters')
+            DCN.save_split(args.path_model)
         accuracies_test = test(DCN, gen)
         for i, cl in enumerate(gen.clusters['test']):
             Accuracies_te[i].append(accuracies_test[i])
@@ -131,7 +142,7 @@ def train(DCN, logger, gen):
 def test(DCN, gen):
     accuracies_test = [[] for ii in gen.clusters['test']]
     iterations_te = int(gen.num_examples_test / batch_size)
-    for it in xrange(iterations_te):
+    for it in range(iterations_te):
         for i, cl in enumerate(gen.clusters['test']):
             # depth tells how many times the dynamic model will be unrolled
             depth = np.log2(cl).astype(int)
@@ -142,7 +153,9 @@ def test(DCN, gen):
             out = DCN(input, length, depth, it=it,
                       mode='test', dynamic=True)
             Phis, Inputs_N, e, loss, pg_loss, var = out
-            accuracies_test[i].append(loss.data.cpu().numpy())
+            cost = utils.cost(input, e.data.cpu().numpy(),
+                              n_clusters=args.num_clusters)
+            accuracies_test[i].append(cost)
     accuracies_test = [sum(accs) / iterations_te
                        for accs in accuracies_test]
     return accuracies_test
@@ -153,8 +166,8 @@ if __name__ == '__main__':
     DCN = DivideAndConquerNetwork(input_size, args.batch_size,
                                   args.num_units_split, args.split_layers,
                                   args.grad_clip_split, beta=args.beta)
-    if args.load_split is not None:
-        DCN.load_split(args.load_split)
+    if args.path_load_model is not None:
+        DCN.load_split(args.path_load_model)
     if torch.cuda.is_available():
         DCN.cuda()
     gen = Generator(args.num_examples_train, args.num_examples_test,

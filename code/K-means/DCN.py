@@ -16,6 +16,7 @@ import unicodedata
 import string
 import re
 import random
+import pdb
 import argparse
 
 import torch
@@ -70,10 +71,14 @@ class DivideAndConquerNetwork(nn.Module):
     ###########################################################################
 
     def save_split(self, path):
+        try: 
+            os.stat(path) 
+        except: 
+            os.mkdir(path)
         directory = os.path.join(path, 'parameters/')
-        try:
-            os.stat(directory)
-        except:
+        try: 
+            os.stat(directory) 
+        except: 
             os.mkdir(directory)
         path = os.path.join(directory, 'params_split.pt')
         torch.save(self.split, path)
@@ -97,21 +102,21 @@ class DivideAndConquerNetwork(nn.Module):
 
     def compute_diameter(self, input, e, cl, it=0):
         m1 = (e == 2 * cl).type(dtype)
-        n1 = m1.sum(1).squeeze(1)
+        n1 = m1.sum(1)
         n1 += (n1 == 0).type(dtype)
         m2 = (e == 2 * cl + 1).type(dtype)
-        n2 = m2.sum(1).squeeze()
+        n2 = m2.sum(1)
         n2 += (n2 == 0).type(dtype)
         m1 = m1.unsqueeze(2).expand_as(input)
         m2 = m2.unsqueeze(2).expand_as(input)
         n1 = n1.unsqueeze(1).expand(self.batch_size, 2)
         n2 = n2.unsqueeze(1).expand(self.batch_size, 2)
         mean1 = (input * m1).sum(1) / n1
-        centered1 = (input - mean1.expand_as(input)) * m1
+        centered1 = (input - mean1.unsqueeze(1).expand_as(input)) * m1
         vars1 = (centered1 * centered1).sum(1)
         var1 = vars1.squeeze().squeeze().sum(1)
         mean2 = (input * m2).sum(1) / n2
-        centered2 = (input - mean2.expand_as(input)) * m2
+        centered2 = (input - mean2.unsqueeze(1).expand_as(input)) * m2
         vars2 = (centered2 * centered2).sum(1)
         var2 = vars2.squeeze().sum(1)
         return var1 + var2, m1[:, :, 0].squeeze(), m2[:, :, 0].squeeze()
@@ -119,7 +124,7 @@ class DivideAndConquerNetwork(nn.Module):
     def compute_loss(self, input, e, b, clusters, it=0):
         Loss = Variable(torch.zeros((self.batch_size))).type(dtype)
         Ls = Variable(torch.zeros((self.batch_size))).type(dtype)
-        for cl in xrange(clusters // 2):
+        for cl in range(clusters // 2):
             L, m1, m2 = self.compute_diameter(input, e, cl, it=it)
             mask = ((e / 2).type(dtype_l) == cl).type(dtype)
             # print('mask', mask[0])
@@ -140,7 +145,7 @@ class DivideAndConquerNetwork(nn.Module):
     def log_probabilities(self, Bs, Samples, mask, depth):
         LogProbs = []
         lengths = mask.sum(1)
-        for scale in xrange(depth):
+        for scale in range(depth):
             probs = Bs[scale]
             sample = Samples[scale]
             probs_act = probs * sample + (1 - probs) * (1 - sample)
@@ -165,8 +170,8 @@ class DivideAndConquerNetwork(nn.Module):
         e = Variable(torch.zeros((self.batch_size, length)).type(dtype),
                      requires_grad=False)
         mask = (input[:, :, 0] >= 0).type(dtype).squeeze()
-        Phis, Bs, Inputs_N, Samples = ([] for ii in xrange(4))
-        for scale in xrange(depth):
+        Phis, Bs, Inputs_N, Samples = ([] for ii in range(4))
+        for scale in range(depth):
             logits, probs, input_n, Phi = self.split(e, input,
                                                      mask, scale=scale)
             # Sample from probabilities and update embeddings
@@ -198,6 +203,7 @@ class DivideAndConquerNetwork(nn.Module):
         self.split.n = length
         input = (Variable(torch.from_numpy(input), requires_grad=False)
                  .type(dtype))
+        # input = input[0].unsqueeze(0).expand_as(input)
         # forward split
         out_split = self.fwd_split(input, it, depth,
                                    mergesort_split=mergesort_split,
@@ -205,10 +211,10 @@ class DivideAndConquerNetwork(nn.Module):
         var, Phis, Bs, Inputs_N, e, lp = out_split
         # compute reward and policy gradient loss
         pg_loss = 0.0
-        for j, scale in enumerate(xrange(depth)):
+        for j, scale in enumerate(range(depth)):
             div = 2 ** (depth - scale - 1)
             cl_scale = 2 ** (scale + 1)
-            samples = (e / div).type(dtype_l)
+            samples = (e / float(div)).type(dtype_l)
             lrwd, acc = self.compute_loss(Inputs_N[0], samples, Bs[j],
                                           cl_scale, it=it)
             pg_loss = lrwd

@@ -15,12 +15,16 @@ import torch.nn.functional as F
 
 class Logger(object):
     def __init__(self, path):
+        try: 
+            os.stat(path) 
+        except: 
+            os.mkdir(path)
         directory = os.path.join(path, 'plots/')
         self.path = directory
         # Create directory if necessary
-        try:
-            os.stat(directory)
-        except:
+        try: 
+            os.stat(directory) 
+        except: 
             os.mkdir(directory)
 
     def write_settings(self, args):
@@ -55,7 +59,7 @@ class Logger(object):
         plt.figure(fig)
         plt.clf()
         colors = cm.rainbow(np.linspace(0, 1, clusters))
-        for cl in xrange(clusters):
+        for cl in range(clusters):
             ind = np.where(e == cl)[0]
             pts = points[ind]
             plt.scatter(pts[:, 0], pts[:, 1], c=colors[cl])
@@ -91,3 +95,4 @@ class Logger(object):
                                .format(scales[i]))
                 rates_str = ', '.join([str(rate) for rate in Discard_rates[i]])
                 file.write(result_acc + result_rate + rates_str + '\n')
+
